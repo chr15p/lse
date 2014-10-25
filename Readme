@@ -1,0 +1,5 @@
+list the actions selinux allows a process to use on the files in a directory
+
+Processes have an selinux context associated with them, files also have a context, selinux has a set of rules that restrict the process context to only certain actions on each file.
+
+This tool allows you to give a pid and a directory and will return the list of allowed actions for the process, for each file inthe directory.
