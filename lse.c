@@ -1,3 +1,14 @@
+/* *
+ * * Copyright (C) 2014 Chris Procter <lse at chrisprocter dot co dot uk>
+ * *
+ * * This copyrighted material is made available to anyone wishing to use,
+ * * modify, copy, or redistribute it subject to the terms and conditions
+ * * of the GNU General Public License v.2.
+ * *
+ * * You should have received a copy of the GNU General Public License
+ * * along with this program; if not, write to the Free Software Foundation,
+ * * Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * */
 #include <stdio.h>
 #include <stdlib.h>
 #include <selinux/context.h>
@@ -21,19 +32,22 @@ static struct option longopts[] = {
 int main(int argc,char *argv[]){
 	security_context_t con;
 	security_context_t pidcon;
-	security_context_t currcon;
+	//security_context_t currcon;
 	struct av_decision av;
 	struct stat statresult;
 	security_class_t class;
 
 	DIR * dirdesc;
 	struct dirent * entry;
-	char *buffer;
+	//char *buffer;
 	int process=1;
 	char * dir;
 	char ch;
 	int len;
 
+	len = strlen("./");
+	dir = (char *) malloc(256 + len);
+	strcpy(dir,"./");
 
     while((ch = getopt_long(argc, argv, "+p:d:",longopts,NULL)) != -1)
     {
