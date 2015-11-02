@@ -108,11 +108,15 @@ int main(int argc,char *argv[]){
 			//printf("WRITE=%d\n",av.allowed & FILE__WRITE);	
 			print_access_vector(class,av.allowed);
 			printf("\n");
+			freecon(con);
 		}else{
 			printf("%-40s ","");
 			printf("%-10s ","link");
 			printf("%-25s\n",dir);
 		}
 	}
+
+	closedir(dirdesc);
+	freecon(pidcon);
 	return 0;
 }
