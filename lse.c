@@ -22,36 +22,69 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#define __USE_XOPEN_EXTENDED
+#define _XOPEN_SOURCE 500
+#include <ftw.h>
+
 static struct option longopts[] = {
   { "process",		required_argument,	NULL,   'p'},
   { "directory",	required_argument,	NULL,	'd'},
   { NULL,  0,  NULL,  0 }
 };
+security_context_t pidcon;
 
+int scanfile(const char *filepath, const struct stat *statresult, int typeflag){
+	security_class_t class;
+	security_context_t con;
+	struct av_decision av;
+
+	//if((strcmp(entry->d_name,"..") == 0)||(strcmp(entry->d_name,".") == 0)){
+	//	return 0;
+	//	
+	if( typeflag==FTW_SL){
+		printf("%-40s ","");
+		printf("%-10s ","symlink");
+		printf("%-25s\n",filepath);
+		return 0;	
+	}
+
+	getfilecon(filepath,&con);
+	if(con != 0){
+		class = mode_to_security_class(statresult->st_mode);
+		printf("%-40s ",con);
+		printf("%-10s ",security_class_to_string(class));
+		printf("%-25s ",filepath);
+		security_compute_av_raw(pidcon,con,class,FILE__READ,&av);
+		//printf("allowed =%d  ",av.allowed); 
+		//printf("READ=%d  ",av.allowed & FILE__READ); 
+		//printf("decided=%d  ",av.decided & FILE__READ); 
+		//printf("WRITE=%d\n",av.allowed & FILE__WRITE);	
+		print_access_vector(class,av.allowed);
+		printf("\n");
+		freecon(con);
+	}else{
+		printf("%-40s ","");
+		printf("%-10s ","no context");
+		printf("%-25s\n",filepath);
+	}
+	return 0;
+}
+
+ 
 
 int main(int argc,char *argv[]){
-	security_context_t con;
-	security_context_t pidcon;
-	//security_context_t currcon;
-	struct av_decision av;
 	struct stat statresult;
-	security_class_t class;
-
-	DIR * dirdesc;
-	struct dirent * entry;
-	//char *buffer;
 	int process=1;
-	char * dir;
 	char ch;
-	int len;
+	int recurse=0;
 
-	len = strlen("./");
-	dir = (char *) malloc(256 + len);
-	strcpy(dir,"./");
 
-    while((ch = getopt_long(argc, argv, "+p:d:",longopts,NULL)) != -1)
-    {
+    while((ch = getopt_long(argc, argv, "+p:r",longopts,NULL)) != -1) {
         switch(ch){
+			case 'r':
+				recurse=1;
+				break;
+			/*
             case 'd':
 				len = strlen(optarg);
 				dir = (char *) malloc(256 + len);
@@ -62,6 +95,7 @@ int main(int argc,char *argv[]){
 		            *(dir+len)=0;
 				}
                 break;
+			*/
             case 'p':
 				process =  strtol(optarg, NULL, 10);
                 break;
@@ -74,49 +108,23 @@ int main(int argc,char *argv[]){
 		fprintf(stderr,"failed to get context for process %d\n",process);
 		exit(1);
 	}
-	printf("process %d context: %s\n",process,pidcon);
-
-
-	if((dirdesc = opendir(dir)) == NULL ){
-		perror("opendir");
-		exit(2);
-	}
-
-	while((entry = readdir(dirdesc)) != NULL){
-		if((strcmp(entry->d_name,"..") == 0)||(strcmp(entry->d_name,".") == 0)){
-			continue;
-		}
-		strcpy(dir + len, entry->d_name);
-
-		
-		getfilecon(dir,&con);
-		if(con != 0){
-			stat(dir,&statresult);
-			if (stat(dir,&statresult) == -1) {
-				perror("stat");
-				exit(EXIT_FAILURE);
+	if (optind < argc) {
+		while (optind < argc){
+			stat(argv[optind],&statresult);
+			if (S_ISDIR(statresult.st_mode) && recurse) {
+				ftw(argv[optind],&scanfile,20);
+			}else{
+				scanfile(argv[optind],&statresult,1);
 			}
-
-			class = mode_to_security_class(statresult.st_mode);
-			printf("%-40s ",con);
-			printf("%-10s ",security_class_to_string(class));
-			printf("%-25s ",dir);
-			security_compute_av_raw(pidcon,con,class,FILE__READ,&av);
-			//printf("allowed =%d  ",av.allowed); 
-			//printf("READ=%d  ",av.allowed & FILE__READ); 
-			//printf("decided=%d  ",av.decided & FILE__READ); 
-			//printf("WRITE=%d\n",av.allowed & FILE__WRITE);	
-			print_access_vector(class,av.allowed);
-			printf("\n");
-			freecon(con);
-		}else{
-			printf("%-40s ","");
-			printf("%-10s ","link");
-			printf("%-25s\n",dir);
+			optind++;
+			//printf("%s ", argv[optind++]);
+			//printf("\n");
 		}
+	}else{
+		ftw(".",&scanfile,20);
 	}
 
-	closedir(dirdesc);
 	freecon(pidcon);
+
 	return 0;
 }
