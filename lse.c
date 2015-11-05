@@ -19,12 +19,13 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <getopt.h>
 
 #define __USE_XOPEN_EXTENDED
 #define _XOPEN_SOURCE 500
+#define __USE_GNU
 #include <ftw.h>
+#include <unistd.h>
 
 static struct option longopts[] = {
   { "process",		required_argument,	NULL,   'p'},
@@ -77,6 +78,7 @@ int main(int argc,char *argv[]){
 	int process=1;
 	char ch;
 	int recurse=0;
+	char *cwd;
 
 
     while((ch = getopt_long(argc, argv, "+p:r",longopts,NULL)) != -1) {
@@ -108,6 +110,8 @@ int main(int argc,char *argv[]){
 		fprintf(stderr,"failed to get context for process %d\n",process);
 		exit(1);
 	}
+
+
 	if (optind < argc) {
 		while (optind < argc){
 			stat(argv[optind],&statresult);
@@ -121,7 +125,13 @@ int main(int argc,char *argv[]){
 			//printf("\n");
 		}
 	}else{
-		ftw(".",&scanfile,20);
+		cwd = get_current_dir_name();
+		if(recurse){
+			ftw(cwd, &scanfile,20);
+		}else{
+			stat(cwd,&statresult);
+			scanfile(cwd,&statresult,1);
+		}
 	}
 
 	freecon(pidcon);
