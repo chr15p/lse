@@ -28,7 +28,7 @@
 
 static struct option longopts[] = {
   { "process",		required_argument,	NULL,   'p'},
-  { "directory",	required_argument,	NULL,	'd'},
+  { "recurse",	required_argument,	NULL,	'r'},
   { NULL,  0,  NULL,  0 }
 };
 security_context_t pidcon;
