@@ -74,12 +74,17 @@ int scanfile(const char *filepath, const struct stat *statresult, int typeflag){
  
 
 int main(int argc,char *argv[]){
+	struct stat argstat;
 	struct stat statresult;
 	int process=1;
 	char ch;
 	int recurse=0;
-	char *cwd;
-
+	char **dirs;
+	int i = 0;
+	DIR * dirdesc;
+	struct dirent * entry;
+	int len;
+	char * fullpath;
 
     while((ch = getopt_long(argc, argv, "+p:r",longopts,NULL)) != -1) {
         switch(ch){
@@ -112,18 +117,55 @@ int main(int argc,char *argv[]){
 	}
 
 
-	if (optind < argc) {
-		while (optind < argc){
-			stat(argv[optind],&statresult);
-			if (S_ISDIR(statresult.st_mode) && recurse) {
-				ftw(argv[optind],&scanfile,20);
-			}else{
-				scanfile(argv[optind],&statresult,1);
+	if (optind >= argc) {
+		dirs = malloc(sizeof(char*));
+		*dirs = get_current_dir_name();
+		argc=1;
+	}else{
+		dirs=argv;
+		i=optind;
+	}
+
+
+	while (i < argc){
+				printf("dirs[%d]=%s\n",i,dirs[i]);
+		stat(dirs[i],&argstat);
+		if (S_ISDIR(argstat.st_mode)) {
+
+			if((dirdesc = opendir(dirs[i])) == NULL ){
+				perror("opendir");
+				exit(2);
 			}
-			optind++;
-			//printf("%s ", argv[optind++]);
-			//printf("\n");
+
+			len = strlen(dirs[i]);
+			while((entry = readdir(dirdesc)) != NULL){
+				if((strcmp(entry->d_name,"..") == 0)||(strcmp(entry->d_name,".") == 0)){
+					continue;
+			 	}
+
+				
+				fullpath = (char *) calloc(len + strlen(entry->d_name)+2,sizeof(char));
+				strcpy(fullpath,dirs[i]);
+				if(*(fullpath+len-1)!='/'){
+					strcat(fullpath,"/");
+				}
+				strcat(fullpath,entry->d_name);
+
+				stat(fullpath,&statresult);
+				if (S_ISDIR(statresult.st_mode) && recurse) {
+					ftw(fullpath,&scanfile,20);
+				}else{
+					scanfile(fullpath,&statresult,1);
+				}
+				free(fullpath);
+			}
+		}else{
+			scanfile(dirs[i],&argstat,1);
 		}
+		i++;
+	}
+
+/*
 	}else{
 		cwd = get_current_dir_name();
 		if(recurse){
@@ -132,8 +174,9 @@ int main(int argc,char *argv[]){
 			stat(cwd,&statresult);
 			scanfile(cwd,&statresult,1);
 		}
+		free(cwd);
 	}
-
+*/
 	freecon(pidcon);
 
 	return 0;
